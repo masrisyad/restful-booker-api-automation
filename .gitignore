@@ -147,16 +147,6 @@ activemq-data/
 # SageMath parsed files
 *.sage.py
 
-# Environments
-.env
-.envrc
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -217,10 +207,44 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Environment
-.env
+# ============================================
+# Environment & Secrets
+# ============================================
 
-# Test reports
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment helpers
+.envrc
+
+# Local secret / credential files
+*.secret
+*.secrets
+secrets.json
+credentials.json
+credentials.yml
+credentials.yaml
+
+# Private keys / certificates
+*.pem
+*.key
+*.p12
+*.pfx
+
+# ============================================
+# Test Reports
+# ============================================
+
 reports/*.html
 reports/*.xml
 

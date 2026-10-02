@@ -114,9 +114,13 @@ to:
 
 Example configuration:
 BASE_URL=https://restful-booker.herokuapp.com
-API_USERNAME=admin
-API_PASSWORD=password123
+API_USERNAME=<your-api-username>
+API_PASSWORD=<your-api-password>
 REQUEST_TIMEOUT=30
+
+Authentication credentials must be stored in the local `.env` file and must never be committed to Git.
+
+For CI/CD execution, credentials will be provided using GitHub Actions Secrets.
 
 The .env file must not be committed to Git.
 Running Tests
