@@ -242,3 +242,11 @@ Next implementation:
 - Authentication API Automation
 - Booking CRUD Automation
 - CI/CD Integration
+
+## Development Workflow
+
+This project follows a Jira-based Git workflow.
+
+For complete Git usage, branch naming, commit conventions, Pull Request flow, and daily development steps, see:
+
+[GIT-WORKFLOW.md](GIT-WORKFLOW.md)
