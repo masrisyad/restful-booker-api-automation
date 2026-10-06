@@ -139,21 +139,95 @@ python -m pytest -m negative
 Run End-to-End Tests:
 python -m pytest -m e2e
 
-Test Reporting
-The framework supports HTML and JUnit XML test reporting.
-Generate HTML report:
-python -m pytest --html=reports/report.html --self-contained-html
+## Test Reporting
 
-Generate JUnit XML report:
-python -m pytest --junitxml=reports/junit.xml
+Setiap CI run menghasilkan tiga file:
 
-Generate both reports:
-python -m pytest --html=reports/report.html --self-contained-html --junitxml=reports/junit.xml
-
-Expected report output:
+```text
 reports/
-├── report.html
-└── junit.xml
+├── stakeholder-report.html  # Ringkasan Bahasa Indonesia untuk stakeholder
+├── report.html              # Detail teknis pytest-html
+└── junit.xml                # Hasil machine-readable
+```
+
+Generate report teknis dan JUnit secara lokal:
+
+```powershell
+python -m pytest --html=reports/report.html --self-contained-html --junitxml=reports/junit.xml
+```
+
+Render stakeholder report tanpa mengunggah ke layanan eksternal:
+
+```powershell
+python scripts/publish_test_results.py --render-only
+```
+
+Report stakeholder menampilkan status akhir, jumlah test lulus/gagal/error/dilewati, durasi, kesimpulan sederhana, dan detail teknis kegagalan. Nilai sensitif seperti password, token, authorization header, dan cookie tidak boleh ditambahkan ke test output.
+
+## Cloudflare R2 Report Storage
+
+Publication memakai Cloudflare R2 S3-compatible API. Tambahkan konfigurasi berikut ke `.env` lokal atau GitHub Actions Secrets:
+
+```env
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET_NAME=
+R2_PUBLIC_BASE_URL=https://reports.example.com
+```
+
+Prasyarat R2:
+
+1. Buat bucket khusus report.
+2. Buat API token dengan akses object read/write hanya untuk bucket tersebut.
+3. Aktifkan public access atau custom domain untuk report yang boleh dibuka stakeholder.
+4. Isi `R2_PUBLIC_BASE_URL` dengan origin publik tersebut.
+
+Object disimpan dengan path immutable:
+
+```text
+<repository>/<jira-key>/<github-run-id>-<attempt>/<report-file>
+```
+
+Kode tidak mengubah bucket menjadi publik. Kebijakan public access dan lifecycle/retention diatur di Cloudflare.
+
+## Jira Test Result Integration
+
+Setelah report berhasil diunggah ke R2, GitHub Actions menambahkan komentar langsung melalui Jira Cloud REST API v3. Jira Automation rule atau incoming webhook tidak diperlukan.
+
+Tambahkan konfigurasi berikut ke `.env` lokal atau GitHub Actions Secrets:
+
+```env
+JIRA_BASE_URL=https://your-domain.atlassian.net
+JIRA_EMAIL=
+JIRA_API_TOKEN=
+```
+
+Setup Jira:
+
+1. Gunakan akun Jira yang boleh melihat issue target dan menambahkan komentar.
+2. Buat Jira API token untuk akun tersebut.
+3. Simpan email dan token hanya di `.env` lokal atau GitHub Actions Secrets.
+4. Jangan menaruh token pada source code, report, log, komentar, atau Pull Request.
+
+CI mengirim komentar Atlassian Document Format ke endpoint berikut dengan HTTP Basic Auth:
+
+```text
+POST {JIRA_BASE_URL}/rest/api/3/issue/{issueKey}/comment
+```
+
+Komentar berisi status akhir, total/lulus/gagal/error/dilewati, durasi, kesimpulan, repository/branch/commit, link report R2, dan link GitHub Actions bila tersedia.
+
+Jira key dideteksi berurutan dari input manual, nama branch PR, judul PR, atau commit message. Jika seluruh konfigurasi R2 atau Jira kosong, proses lokal atau PR dari fork tetap membuat report dan melewati integrasi terkait. Konfigurasi parsial dianggap error agar salah setup terlihat jelas. Komentar Jira memerlukan URL stakeholder report yang berhasil diunggah ke R2.
+
+## GitHub Actions Reporting Flow
+
+1. Jalankan smoke test pada Pull Request, atau suite pilihan pada manual run.
+2. Hasilkan `pytest-html` dan JUnit XML.
+3. Render stakeholder report walau test gagal.
+4. Upload folder `reports/` sebagai GitHub Actions artifact selama 30 hari.
+5. Upload report ke R2 dan kirim ringkasan ke Jira jika secret tersedia.
+6. Pertahankan exit code pytest sehingga test gagal tetap membuat workflow gagal.
 
 Jira Traceability
 Development work follows Jira work item naming conventions.
