@@ -247,6 +247,7 @@ credentials.yaml
 
 reports/*.html
 reports/*.xml
+reports/*.json
 
 # Allure
 allure-results/

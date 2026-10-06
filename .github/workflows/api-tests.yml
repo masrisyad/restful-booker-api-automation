@@ -8,6 +8,15 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      suite:
+        description: Test suite (all, smoke, regression, negative, or e2e)
+        required: false
+        default: all
+      jira_issue_key:
+        description: Jira issue key for manual runs
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -18,6 +27,16 @@ jobs:
     env:
       API_USERNAME: ${{ secrets.API_USERNAME }}
       API_PASSWORD: ${{ secrets.API_PASSWORD }}
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+      R2_PUBLIC_BASE_URL: ${{ secrets.R2_PUBLIC_BASE_URL }}
+      JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+      JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+      JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+      JIRA_ISSUE_KEY: ${{ inputs.jira_issue_key || '' }}
+      TEST_SUITE: ${{ github.event_name == 'pull_request' && 'smoke' || inputs.suite || 'all' }}
 
     steps:
       - name: Checkout repository
@@ -33,10 +52,31 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run smoke tests
-        if: github.event_name == 'pull_request'
-        run: python -m pytest -m smoke
+      - name: Run API tests
+        shell: bash
+        run: |
+          marker_args=()
+          if [[ "$TEST_SUITE" != "all" ]]; then
+            marker_args=(-m "$TEST_SUITE")
+          fi
+          python -m pytest "${marker_args[@]}" \
+            --html=reports/report.html \
+            --self-contained-html \
+            --junitxml=reports/junit.xml
 
-      - name: Run all tests on main
-        if: github.event_name != 'pull_request'
-        run: python -m pytest
+      - name: Render stakeholder report
+        if: always()
+        run: python scripts/publish_test_results.py --render-only
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Publish report and notify Jira
+        if: always()
+        run: python scripts/publish_test_results.py
